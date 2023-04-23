@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+
+# AUTHOR: PRITAM SUWAL SHRESTHA (23771397)
+
+PS4=$'\e[1;32m+${BASH_SOURCE}:${LINENO}: \e[0m'
+
+if [[ $# -ne 2 ]]; then
+    echo "Usage: $0 <tsv_file> <command>" >/dev/stderr
+    exit 1
+fi
+
+tsv_file=$1
+sec_arg=$2
+
+if [[ ! -s $tsv_file ]]; then
+    echo "Error: The file $tsv_file does not exist for is empty" >/dev/stderr
+    exit 1
+fi
+
+year_regex='^[0-9]{4}$'
+state_regex='^[A-Z]{2}$'
+max_regex='^max.*'
+
+if [[ $sec_arg == "maxstate" ]]; then
+    output=$(tail -n +2 $tsv_file | cut -d $'\t' -f 2 | sort | uniq -c | sort -k 1 -r -n | head -n 1)
+    state=$(echo $output | cut -d ' ' -f 2)
+    count=$(echo $output | cut -d ' ' -f 1)
+    echo State with greatest number of incidents is: ${state} with count ${count}
+    exit 0
+fi
+
+if [[ $sec_arg == "maxyear" ]]; then
+    output=$(tail -n +2 $tsv_file | cut -d $'\t' -f 8 | sort | uniq -c | sort -k 1 -r -n | head -n 1)
+    year=$(echo $output | cut -d ' ' -f 2)
+    count=$(echo $output | cut -d ' ' -f 1)
+    echo Year with greatest number of incidents is: ${year} with count ${count}
+    exit 0
+fi
+
+if [[ $sec_arg =~ $year_regex ]]; then
+
+    if [[ ! $(cut -d $'\t' -f 8 $tsv_file | grep $sec_arg) ]]; then
+        echo "Error: Record for year $sec_arg not found." >/dev/stderr
+        exit 1
+    fi
+
+    output=$(cut -d $'\t' -f 2,8 $tsv_file | grep $sec_arg | sort -k 1 | uniq -c | sort -k 1 -r -n)
+    count=$(echo $output | cut -d ' ' -f 1)
+    state=$(echo $output | cut -d ' ' -f 2)
+    year=$(echo $output | cut -d ' ' -f 3)
+
+    echo State with greatest number of incidents for $year is in $state with count $count
+
+    exit 0
+fi
+
+if [[ $sec_arg =~ $state_regex ]]; then
+
+    if [[ ! $(cut -d $'\t' -f 2 $tsv_file | grep -Fw $sec_arg) ]]; then
+        echo "Error: The state code $sec_arg not found." >/dev/stderr
+        exit 1
+    fi
+
+    output=$(cut -d $'\t' -f 2,8 $tsv_file | grep $sec_arg | uniq -c | sort -k 1 -r -n)
+    year=$(echo $output | cut -d ' ' -f 3)
+    count=$(echo $output | cut -d ' ' -f 1)
+    echo Year with greatest number of incidents for $sec_arg is in $year with count $count
+    exit 0
+
+fi
+
+if [[ $sec_arg =~ $max_regex ]]; then
+    echo "The max commands are either maxstate or maxyear" >/dev/stderr
+    exit 1
+else
+    echo "Invalid arg" >/dev/stderr
+    exit 1
+fi
+
+# case $sec_arg in
+# # maxstate)
+# #     output=$(tail -n +2 $tsv_file | cut -d $'\t' -f 2 | sort | uniq -c | sort -k 1 -r -n | head -n 1)
+# #     state=$(echo $output | cut -d ' ' -f 2)
+# #     count=$(echo $output | cut -d ' ' -f 1)
+# #     echo State with greatest number of incidents is: ${state} with count ${count}
+# #     exit 0
+# #     ;;
+# maxyear)
+#     output=$(tail -n +2 $tsv_file | cut -d $'\t' -f 8 | sort | uniq -c | sort -k 1 -r -n | head -n 1)
+#     year=$(echo $output | cut -d ' ' -f 2)
+#     count=$(echo $output | cut -d ' ' -f 1)
+#     echo Year with greatest number of incidents is: ${year} with count ${count}
+#     exit 0
+#     ;;
+# [0-9][0-9][0-9][0-9])
+
+#     if [[ ! $(cut -d $'\t' -f 8 $tsv_file | grep $sec_arg) ]]; then
+#         echo "Error: Record for year $sec_arg not found." >/dev/stderr
+#         exit 1
+#     fi
+
+#     output=$(cut -d $'\t' -f 2,8 $tsv_file | grep $sec_arg | sort -k 1 | uniq -c | sort -k 1 -r -n)
+#     count=$(echo $output | cut -d ' ' -f 1)
+#     state=$(echo $output | cut -d ' ' -f 2)
+#     year=$(echo $output | cut -d ' ' -f 3)
+
+#     echo State with greatest number of incidents for $year is in $state with count $count
+
+#     exit 0
+#     ;;
+# [A-Z][A-Z])
+
+#     if [[ ! $(cut -d $'\t' -f 2 $tsv_file | grep -Fw $sec_arg) ]]; then
+#         echo "Error: The state code $sec_arg not found." >/dev/stderr
+#         exit 1
+#     fi
+
+#     output=$(cut -d $'\t' -f 2,8 $tsv_file | grep $sec_arg | uniq -c | sort -k 1 -r -n)
+#     year=$(echo $output | cut -d ' ' -f 3)
+#     count=$(echo $output | cut -d ' ' -f 1)
+#     echo Year with greatest number of incidents for $sec_arg is in $year with count $count
+#     exit 0
+#     ;;
+# max*)
+#     echo "The max commands are either maxstate or maxyear"
+#     exit 1
+#     ;;
+# *)
+#     echo "Invalid arg"
+#     exit 1
+#     ;;
+# esac

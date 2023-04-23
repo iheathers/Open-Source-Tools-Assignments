@@ -1,0 +1,192 @@
+# AUTHOR: PRITAM SUWAL SHRESTHA (23771397)
+
+# SCRIPT NAME: cyber_breaches
+# DESCRIPTION: A script that reports corresponding data according to the second argument
+
+# cyber_breaches COMMANDS
+# There are four sorts of commands, one of which must appear as the second argument for each call to cyber_breaches.
+# 1. maxstate             : Reports the code for the state that has the largest number of incidents across all years,
+#                           and the corresponding count. If there are more than one such state, just report one of them
+
+# 2. maxyear              : Reports the year with the greatest number of incidences across all the states, and the corresponding count.
+#                           If there are more than one such year, just report one of them
+
+# A two letter state code : For the named state, eport the year with the maximum number of incidents, and the count.
+#                           (If more than one, any one of them.)
+
+# A four digit year       : For the named year, report the state with the maximum number of incidents for that year, and the count.
+#                           (If more than one, any one of them.)
+
+# USAGE:
+#   ./cyber_breaches TSV_FILENAME ARGUMENT
+
+# Examples:
+# % ./cyber_breaches Cyber_Security_Breaches.tsv maxstate
+# % ./cyber_breaches Cyber_Security_Breaches.tsv maxyear
+# % ./cyber_breaches Cyber_Security_Breaches.tsv 2010
+# % ./cyber_breaches Cyber_Security_Breaches.tsv TX
+
+# ASSUMPTIONS:
+# 1. The .tsv (tab seperated value) file is assumed to have following columns in the same order
+# 2. The first line is assumed to be a line with named column
+# 3. The .tsv file always ends with new line character at the end of the file
+# 4. The state code is always two lettered and capitalized
+
+# SAMPLE DATA IN A FILE
+#
+# | Name of Covered Entity                              | State | Individuals Affected | Date of Breach        | Type of Breach                | Location of Breached Information         | Summary | Year | Index       |
+# | --------------------------------------------------- | ----- | ---------------------| ----------------------| ------------------------------| -----------------------------------------| --------| -----| ------------|
+# | UNCG Speech and Hearing Center                      | NC    | 2300                 | 1/1/97                | Hacking/IT Incident           | Desktop Computer                         |         | 1997 | 32343736038 |
+# | UMass Memorial Medical Center                       | MA    | 2387                 | 5/6/02                | Unauthorized Access/Disclosure| Electronic Medical Record, Paper         |         | 2002 | 36925152965 |
+# | Riverside Mercy Hospital and Ohio/Mercy Diagnostics | OH    | 1000                 | 3/29/2003             | Improper Disposal             | Paper                                    |         | 2003 | 99535201610 |
+# | Duke University Health System                       | NC    | 591                  | 04/21/2004-02/16/2012 | Unauthorized Access/Disclosure| Other                                    |         | 2004 | 31499581336 |
+# | SW General Inc                                      | AZ    | 566                  | 5/1/04                | Theft                         | Paper                                    |         | 2004 | 90589327709 |
+
+#!/usr/bin/env bash
+
+# Colored output for debugging: bash -xv cyber_breaches <tsv_file> <second_argument>
+PS4=$'\e[1;32m+${BASH_SOURCE}:${LINENO}: \e[0m'
+
+COMMAND=$0
+
+MAX_YEAR=maxyear
+MAX_REGEX='^max.*'
+MAX_STATE=maxstate
+YEAR_REGEX='^[0-9]{4}$'
+STATE_REGEX='^[a-zA-Z]{2}$'
+
+USAGE_MSG="USAGE: \n
+                \t $COMMAND <tsv_file> $MAX_YEAR\n
+                \t $COMMAND <tsv_file> $MAX_STATE\n
+                \t $COMMAND <tsv_file> <year>\n
+                \t $COMMAND <tsv_file> <state_code>"
+
+# Exit Codes
+SUCCESS_EXIT_CODE=0
+INVALID_ARGUMENTS_EXIT_CODE=1
+FILE_NOT_FOUND_EXIT_CODE=2
+DATA_NOT_FOUND_EXIT_CODE=3
+INVALID_FILE_EXIT_CODE=4
+
+# Check if the number of arguments is 2. If not, echo the Usage of the command
+if [[ $# -ne 2 ]]; then
+    echo -e $USAGE_MSG >/dev/stderr
+
+    exit $INVALID_ARGUMENTS_EXIT_CODE
+fi
+
+tsv_file=$1 # First argument is a tab seperated value file
+sec_arg=$2  # Second Argument can be 'maxstate', 'maxyear', <year> or <state_code>
+
+# Checks if the file exist and if it exist whether it is empty or not
+if [[ ! -s $tsv_file ]] || [[ ! -f $tsv_file ]]; then
+    echo "ERROR: The file $tsv_file does not exist or is empty" >/dev/stderr
+
+    exit $FILE_NOT_FOUND_EXIT_CODE
+fi
+
+line_count=$(wc -l $tsv_file | tr -s ' ' ' ' | cut -d ' ' -f 1)
+
+# Check if the file is single line with named column only
+if [[ $line_count -eq 1 ]]; then
+    echo ERROR: The file "$tsv_file" is a single line file and has no data. >/dev/stderr
+
+    exit $INVALID_FILE_EXIT_CODE
+fi
+
+# Report the code for the state that has the largest number of incidents across all years, and the corresponding count.
+# If there are more than one such state, just reports one of them
+if [[ $(echo $sec_arg | tr '[:lower:][:upper:]' '[:lower:][:lower:]') == $MAX_STATE ]]; then
+
+    # Throw if the command contains uppercase. 'maxstate' is supposed to be passed as lowercase string
+    if [[ $sec_arg =~ [A-Z] ]]; then
+        echo WARNING: The command $sec_arg is supposed to be in lowercase: $MAX_STATE
+    fi
+
+    output=$(tail -n +2 $tsv_file | cut -d $'\t' -f 2 | sort | uniq -c | sort -k 1 -r -n | head -n 1)
+    state=$(echo $output | cut -d ' ' -f 2)
+    count=$(echo $output | cut -d ' ' -f 1)
+
+    echo State with greatest number of incidents is: ${state} with count ${count}
+
+    exit $SUCCESS_EXIT_CODE
+fi
+
+# Report the year with the greatest number of incidences across all the states, and the corresponding count.
+# If there are more than one such year, just reports one of them
+if [[ $(echo $sec_arg | tr '[:lower:][:upper:]' '[:lower:][:lower:]') == $MAX_YEAR ]]; then
+
+    if [[ $sec_arg =~ [A-Z] ]]; then
+        echo WARNING: The command $sec_arg is supposed to be in lowercase: $MAX_YEAR
+    fi
+
+    output=$(tail -n +2 $tsv_file | cut -d $'\t' -f 8 | sort | uniq -c | sort -k 1 -r -n | head -n 1)
+    year=$(echo $output | cut -d ' ' -f 2)
+    count=$(echo $output | cut -d ' ' -f 1)
+
+    echo Year with greatest number of incidents is: ${year} with count ${count}
+
+    exit $SUCCESS_EXIT_CODE
+fi
+
+# For the named year, reports the state with the maximum number of incidents for that year, and the count.
+# (If more than one, reports any one of them.)
+if [[ $sec_arg =~ $YEAR_REGEX ]]; then
+
+    # Throws Error Message if input year is not in the list
+    if [[ ! $(cut -d $'\t' -f 8 $tsv_file | grep $sec_arg) ]]; then
+        echo "INFO: Record for year $sec_arg not found." >/dev/stderr
+
+        exit $DATA_NOT_FOUND_EXIT_CODE
+    fi
+
+    output=$(cut -d $'\t' -f 2,8 $tsv_file | grep $sec_arg | sort -k 1 | uniq -c | sort -k 1 -r -n)
+    count=$(echo $output | cut -d ' ' -f 1)
+    state=$(echo $output | cut -d ' ' -f 2)
+    year=$(echo $output | cut -d ' ' -f 3)
+
+    echo State with greatest number of incidents for $year is in $state with count $count
+
+    exit $SUCCESS_EXIT_CODE
+fi
+
+# For the named state, eport the year with the maximum number of incidents, and the count.
+# (If more than one, reports any one of them.)
+if [[ $sec_arg =~ $STATE_REGEX ]]; then
+
+    capitalized_state_code=$(echo $sec_arg | tr '[:lower:][:upper:]' '[:upper:][:upper:]')
+
+    #Throw WARNING if the state code has lowercase string
+    if [[ $sec_arg =~ [a-z] ]]; then
+        echo WARNING: The command $sec_arg is supposed to be in uppercase: $capitalized_state_code
+    fi
+
+    # Throws Error Message if the state code is not in the list
+    if [[ ! $(cut -d $'\t' -f 2 $tsv_file | grep -Fw $capitalized_state_code) ]]; then
+        echo "INFO: Invalid state code $capitalized_state_code or Record for $capitalized_state_code not found." >/dev/stderr
+
+        exit $DATA_NOT_FOUND_EXIT_CODE
+    fi
+
+    output=$(cut -d $'\t' -f 2,8 $tsv_file | grep $capitalized_state_code | uniq -c | sort -k 1 -r -n)
+    year=$(echo $output | cut -d ' ' -f 3)
+    count=$(echo $output | cut -d ' ' -f 1)
+
+    echo Year with greatest number of incidents for $capitalized_state_code is in $year with count $count
+
+    exit $SUCCESS_EXIT_CODE
+
+fi
+
+# Reports Usage message if second argument is invalid
+if [[ $sec_arg =~ $MAX_REGEX ]]; then
+    echo "The max commands are either $MAX_STATE or $MAX_YEAR" >/dev/stderr
+    echo -e $USAGE_MSG >/dev/stderr
+
+    exit $INVALID_ARGUMENTS_EXIT_CODE
+else
+    echo "Invalid arguments" >/dev/stderr
+    echo -e $USAGE_MSG >/dev/stderr
+
+    exit $INVALID_ARGUMENTS_EXIT_CODE
+fi
